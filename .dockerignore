@@ -1,0 +1,16 @@
+.git
+.gitignore
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+outputs/*
+!outputs/.gitkeep
+.env
+.idea/
+.vscode/
+README.md
+run.sh
+run.bat

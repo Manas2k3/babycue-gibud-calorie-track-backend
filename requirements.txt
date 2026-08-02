@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+gunicorn==23.0.0
+python-multipart==0.0.20
+ultralytics==8.3.55
+ensemble-boxes==1.0.9
+opencv-python-headless==4.10.0.84
+numpy==1.26.4
+requests>=2.31.0
+pydantic>=2.0.0
+transformers
+torch
+torchvision
+pillow

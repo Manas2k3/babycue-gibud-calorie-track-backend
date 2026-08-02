@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Food Detection Ensemble</title>
+<style>
+  body { font-family: -apple-system, Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; color: #222; }
+  h1 { font-size: 20px; }
+  #dropzone { border: 2px dashed #999; border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; }
+  #dropzone.drag { background: #f0f6ff; border-color: #3378d0; }
+  #result { margin-top: 24px; }
+  img#montage { max-width: 100%; border-radius: 8px; border: 1px solid #ddd; }
+  pre { background: #f7f7f7; padding: 12px; border-radius: 6px; overflow-x: auto; font-size: 13px; }
+  .status { color: #666; font-size: 14px; }
+
+  .detections {
+    list-style: none;
+    padding: 0;
+    margin: 12px 0 24px;
+    display: grid;
+    gap: 8px;
+  }
+
+  .detection-card {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px;
+    border: 1px solid #e2e2e2;
+    border-radius: 8px;
+    background: #fafafa;
+  }
+
+  .detection-name {
+    font-weight: 600;
+    text-transform: capitalize;
+  }
+
+  .no-detections {
+    color: #b3261e;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Food Detection Ensemble - Test Upload</h1>
+<p class="status">
+  Upload a food photo. It runs through all 5 domain models and shows the fused result.
+</p>
+
+<div id="dropzone">
+  <input type="file" id="fileInput" accept="image/*" style="display:none">
+  <p>Click to choose an image, or drag one here</p>
+</div>
+
+<div id="result"></div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const resultDiv = document.getElementById('result');
+
+dropzone.addEventListener('click', () => fileInput.click());
+
+dropzone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropzone.classList.add('drag');
+});
+
+dropzone.addEventListener('dragleave', () => {
+  dropzone.classList.remove('drag');
+});
+
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+
+  if (e.dataTransfer.files.length) {
+    uploadFile(e.dataTransfer.files[0]);
+  }
+});
+
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) {
+    uploadFile(e.target.files[0]);
+  }
+});
+
+async function uploadFile(file) {
+  resultDiv.innerHTML =
+    '<p class="status">Running through all 5 models...</p>';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const res = await fetch('/predict', {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      resultDiv.innerHTML =
+        `<p style="color:red">Error: ${err.detail}</p>`;
+      return;
+    }
+
+    const data = await res.json();
+    render(data);
+
+  } catch (err) {
+    resultDiv.innerHTML =
+      `<p style="color:red">Request failed: ${err}</p>`;
+  }
+}
+
+function renderTopPredictions(detections) {
+  if (!detections || detections.length === 0) {
+    return '<p class="no-detections">No predictions available.</p>';
+  }
+
+  const top5 = detections.slice(0, 5);
+
+  return `
+    <ul class="detections">
+      ${top5.map(d => `
+        <li class="detection-card">
+          <span class="detection-name">${d.class_name}</span>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+}
+
+function render(data) {
+
+  const rawLines = Object.entries(data.raw_predictions)
+    .map(([domain, dets]) => {
+      const items =
+        dets.map(d =>
+          `${d.class_name} (${(d.confidence * 100).toFixed(0)}%)`
+        ).join(', ') || 'none';
+
+      return `<li><strong>${domain}:</strong> ${items}</li>`;
+    }).join('');
+
+  resultDiv.innerHTML = `
+    <h3>Top 5 Predictions</h3>
+
+    ${renderTopPredictions(data.top5)}
+
+    <h3>Raw predictions per model (fusion disabled)</h3>
+
+    <ul>
+      ${rawLines}
+    </ul>
+
+    <img
+      id="montage"
+      src="${data.urls.montage}"
+      alt="Montage of all raw predictions"
+    >
+
+    <h3>Full JSON response</h3>
+
+    <pre>${JSON.stringify(data, null, 2)}</pre>
+  `;
+}
+</script>
+
+</body>
+</html>
